@@ -40,15 +40,40 @@ class _PantryShellState extends State<_PantryShell> {
   int _nextShoppingId = 0;
 
   void _open(int index) => setState(() => _selected = index);
-  void _addShoppingItem(String name, double quantity, String unit) {
+  ShoppingItem? _findDuplicateShoppingItem(
+    String name,
+    String unit, {
+    String? excludeId,
+  }) {
+    for (final item in _shopping) {
+      if (!item.isPurchased &&
+          item.id != excludeId &&
+          normalizeName(item.name) == normalizeName(name) &&
+          normalizeShoppingUnit(item.unit) == normalizeShoppingUnit(unit)) {
+        return item;
+      }
+    }
+
+    return null;
+  }
+
+  ShoppingItem? _addShoppingItem(String name, double quantity, String unit) {
+    final duplicate = _findDuplicateShoppingItem(name, unit);
+
+    if (duplicate != null) {
+      return duplicate;
+    }
+
     setState(() {
       _shopping.add(
         ShoppingItem('manual-${_nextShoppingId++}', name, quantity, unit),
       );
     });
+
+    return null;
   }
 
-  void _editShoppingItem(
+  ShoppingItem? _editShoppingItem(
     ShoppingItem item,
     String name,
     double quantity,
@@ -58,7 +83,19 @@ class _PantryShellState extends State<_PantryShell> {
       (shoppingItem) => shoppingItem.id == item.id,
     );
 
-    if (index == -1) return;
+    if (index == -1) return null;
+
+    if (!_shopping[index].isPurchased) {
+      final duplicate = _findDuplicateShoppingItem(
+        name,
+        unit,
+        excludeId: item.id,
+      );
+
+      if (duplicate != null) {
+        return duplicate;
+      }
+    }
 
     setState(() {
       _shopping[index] = _shopping[index].copyWith(
@@ -67,7 +104,36 @@ class _PantryShellState extends State<_PantryShell> {
         unit: unit,
       );
     });
+
+    return null;
   }
+  ShoppingItem? _toggleShoppingItem(ShoppingItem item) {
+  final index = _shopping.indexWhere(
+    (shoppingItem) => shoppingItem.id == item.id,
+  );
+
+  if (index == -1) return null;
+
+  final currentItem = _shopping[index];
+
+  if (currentItem.isPurchased) {
+    final duplicate = _findDuplicateShoppingItem(
+      currentItem.name,
+      currentItem.unit,
+      excludeId: currentItem.id,
+    );
+
+    if (duplicate != null) {
+      return duplicate;
+    }
+  }
+
+  setState(() {
+    _shopping[index] = currentItem.toggle();
+  });
+
+  return null;
+}
 
   void _deleteShoppingItem(ShoppingItem item) {
     setState(() {
@@ -130,14 +196,13 @@ class _PantryShellState extends State<_PantryShell> {
       ),
       2 => UseFirstPage(items: _pantry),
       3 => ShoppingPage(
-  items: _shopping,
-  pantry: _pantry,
-  toggle: (item) =>
-      setState(() => _shopping[_shopping.indexOf(item)] = item.toggle()),
-  onAddItem: _addShoppingItem,
-  onEditItem: _editShoppingItem,
-  onDeleteItem: _deleteShoppingItem,
-),
+        items: _shopping,
+        pantry: _pantry,
+        toggle: _toggleShoppingItem,
+        onAddItem: _addShoppingItem,
+        onEditItem: _editShoppingItem,
+        onDeleteItem: _deleteShoppingItem,
+      ),
       _ => RecipesPage(matches: recommendations, onOpen: openRecipe),
     };
 

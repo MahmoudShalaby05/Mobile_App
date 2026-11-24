@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/shopping_item.dart';
 
 class AddShoppingItemDialog extends StatefulWidget {
-  final void Function(String name, double quantity, String unit) onAdd;
+  final ShoppingItem? Function(String name, double quantity, String unit) onAdd;
 
   final ShoppingItem? existingItem;
 
@@ -24,7 +24,7 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
   late final TextEditingController _quantityController;
 
   late String _selectedUnit;
-
+  ShoppingItem? _duplicateItem;
   bool get _isEditing => widget.existingItem != null;
 
   @override
@@ -63,6 +63,13 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Item Name'),
+                onChanged: (value) {
+                  if (_duplicateItem != null) {
+                    setState(() {
+                      _duplicateItem = null;
+                    });
+                  }
+                },
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Enter an item name';
@@ -122,10 +129,20 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
                   if (value != null) {
                     setState(() {
                       _selectedUnit = value;
+                      _duplicateItem = null;
                     });
                   }
                 },
               ),
+              if (_duplicateItem != null) ...[
+                const SizedBox(height: 16),
+
+                Text(
+                  '${_duplicateItem!.name} is already in your shopping list '
+                  '(${_duplicateItem!.quantity} ${_duplicateItem!.unit}).',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
             ],
           ),
         ),
@@ -142,13 +159,19 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
         FilledButton(
           onPressed: () {
             if (_formKey.currentState!.validate()) {
-              widget.onAdd(
+              final duplicate = widget.onAdd(
                 _nameController.text.trim(),
                 double.parse(_quantityController.text),
                 _selectedUnit,
               );
 
-              Navigator.pop(context);
+              if (duplicate != null) {
+                setState(() {
+                  _duplicateItem = duplicate;
+                });
+              } else {
+                Navigator.pop(context);
+              }
             }
           },
           child: Text(_isEditing ? 'Save' : 'Add'),

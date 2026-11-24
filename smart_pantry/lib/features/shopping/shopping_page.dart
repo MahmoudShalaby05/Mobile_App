@@ -18,14 +18,17 @@ class ShoppingPage extends StatelessWidget {
 
   final List<ShoppingItem> items;
   final List<FoodItem> pantry;
-  final ValueChanged<ShoppingItem> toggle;
-  final void Function(String name, double quantity, String unit) onAddItem;
-  final void Function(
+  final ShoppingItem? Function(ShoppingItem item) toggle;
+  final ShoppingItem? Function(String name, double quantity, String unit)
+  onAddItem;
+
+  final ShoppingItem? Function(
     ShoppingItem item,
     String name,
     double quantity,
     String unit,
-  ) onEditItem;
+  )
+  onEditItem;
 
   final ValueChanged<ShoppingItem> onDeleteItem;
 
@@ -36,7 +39,6 @@ class ShoppingPage extends StatelessWidget {
       const PageHeading('Shopping list', 'Check off groceries as you shop.'),
       const SizedBox(height: 12),
 
-      // NEW: Add Item button
       FilledButton.icon(
         onPressed: () {
           showDialog(
@@ -53,90 +55,116 @@ class ShoppingPage extends StatelessWidget {
       const SizedBox(height: 12),
       if (items.isEmpty) const Text('Your shopping list is empty.'),
       for (final item in items)
-  Card(
-    color: Colors.white,
-    elevation: 0,
-    child: Row(
-      children: [
-        Expanded(
-          child: CheckboxListTile(
-            value: item.isPurchased,
-            onChanged: (_) => toggle(item),
-            title: Text(item.name),
-            subtitle: Text(_details(item)),
+        Card(
+          color: Colors.white,
+          elevation: 0,
+          child: Row(
+            children: [
+              Expanded(
+                child: CheckboxListTile(
+                  value: item.isPurchased,
+                  onChanged: (_) {
+                    final duplicate = toggle(item);
+
+                    if (duplicate != null) {
+                      _showDuplicateWarning(context, duplicate);
+                    }
+                  },
+                  title: Text(item.name),
+                  subtitle: Text(_details(item)),
+                ),
+              ),
+
+              IconButton(
+                tooltip: 'Edit Item',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AddShoppingItemDialog(
+                        existingItem: item,
+                        onAdd: (name, quantity, unit) {
+                          return onEditItem(item, name, quantity, unit);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+
+              IconButton(
+                tooltip: 'Delete Item',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () {
+                  _confirmDelete(context, item);
+                },
+              ),
+            ],
           ),
         ),
-
-        // Edit button
-        IconButton(
-          tooltip: 'Edit Item',
-          icon: const Icon(Icons.edit_outlined),
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AddShoppingItemDialog(
-                  existingItem: item,
-                  onAdd: (name, quantity, unit) {
-                    onEditItem(item, name, quantity, unit);
-                  },
-                );
-              },
-            );
-          },
-        ),
-
-        // Delete button
-        IconButton(
-          tooltip: 'Delete Item',
-          icon: const Icon(Icons.delete_outline),
-          onPressed: () {
-            _confirmDelete(context, item);
-          },
-        ),
-      ],
-    ),
-  ),
     ],
   );
-void _confirmDelete(
-  BuildContext context,
-  ShoppingItem item,
-) {
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Delete Shopping Item'),
-        content: Text(
-          'Are you sure you want to delete ${item.name}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel'),
+
+  void _showDuplicateWarning(BuildContext context, ShoppingItem duplicate) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Cannot Uncheck Item'),
+          content: Text(
+            '${duplicate.name} is already in your shopping list '
+            'as an unpurchased item '
+            '(${duplicate.quantity} ${duplicate.unit}).',
           ),
-          FilledButton(
-            onPressed: () {
-              onDeleteItem(item);
-              Navigator.pop(context);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      );
-    },
-  );
-}
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context, ShoppingItem item) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Shopping Item'),
+          content: Text('Are you sure you want to delete ${item.name}?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                onDeleteItem(item);
+                Navigator.pop(context);
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   String _details(ShoppingItem item) {
     final stock = pantry
         .where(
           (food) =>
               food.daysRemaining >= 0 &&
               normalizeName(food.name) == normalizeName(item.name) &&
-              food.unit == item.unit,
+              normalizeShoppingUnit(food.unit) ==
+                  normalizeShoppingUnit(item.unit),
         )
         .fold(0.0, (total, food) => total + food.quantity);
     final requested = '${quantityLabel(item.quantity)} ${item.unit}';

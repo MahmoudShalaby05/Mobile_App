@@ -30,3 +30,13 @@ class ShoppingItem {
     );
   }
 }
+
+String normalizeShoppingUnit(String unit) {
+  final normalized = unit.trim().toLowerCase();
+
+  if (normalized == 'pcs' || normalized == 'pieces') {
+    return 'pieces';
+  }
+
+  return normalized;
+}
