@@ -40,6 +40,22 @@ class _PantryShellState extends State<_PantryShell> {
   int _nextShoppingId = 0;
 
   void _open(int index) => setState(() => _selected = index);
+  void _addShoppingItem(
+  String name,
+  double quantity,
+  String unit,
+) {
+  setState(() {
+    _shopping.add(
+      ShoppingItem(
+        'manual-${_nextShoppingId++}',
+        name,
+        quantity,
+        unit,
+      ),
+    );
+  });
+}
 
   void _addMissing(List<Ingredient> missing) {
     setState(() {
@@ -100,6 +116,7 @@ class _PantryShellState extends State<_PantryShell> {
         pantry: _pantry,
         toggle: (item) =>
             setState(() => _shopping[_shopping.indexOf(item)] = item.toggle()),
+        onAddItem: _addShoppingItem,
       ),
       _ => RecipesPage(matches: recommendations, onOpen: openRecipe),
     };
