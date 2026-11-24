@@ -40,22 +40,40 @@ class _PantryShellState extends State<_PantryShell> {
   int _nextShoppingId = 0;
 
   void _open(int index) => setState(() => _selected = index);
-  void _addShoppingItem(
-  String name,
-  double quantity,
-  String unit,
-) {
-  setState(() {
-    _shopping.add(
-      ShoppingItem(
-        'manual-${_nextShoppingId++}',
-        name,
-        quantity,
-        unit,
-      ),
+  void _addShoppingItem(String name, double quantity, String unit) {
+    setState(() {
+      _shopping.add(
+        ShoppingItem('manual-${_nextShoppingId++}', name, quantity, unit),
+      );
+    });
+  }
+
+  void _editShoppingItem(
+    ShoppingItem item,
+    String name,
+    double quantity,
+    String unit,
+  ) {
+    final index = _shopping.indexWhere(
+      (shoppingItem) => shoppingItem.id == item.id,
     );
-  });
-}
+
+    if (index == -1) return;
+
+    setState(() {
+      _shopping[index] = _shopping[index].copyWith(
+        name: name,
+        quantity: quantity,
+        unit: unit,
+      );
+    });
+  }
+
+  void _deleteShoppingItem(ShoppingItem item) {
+    setState(() {
+      _shopping.removeWhere((shoppingItem) => shoppingItem.id == item.id);
+    });
+  }
 
   void _addMissing(List<Ingredient> missing) {
     setState(() {
@@ -112,12 +130,14 @@ class _PantryShellState extends State<_PantryShell> {
       ),
       2 => UseFirstPage(items: _pantry),
       3 => ShoppingPage(
-        items: _shopping,
-        pantry: _pantry,
-        toggle: (item) =>
-            setState(() => _shopping[_shopping.indexOf(item)] = item.toggle()),
-        onAddItem: _addShoppingItem,
-      ),
+  items: _shopping,
+  pantry: _pantry,
+  toggle: (item) =>
+      setState(() => _shopping[_shopping.indexOf(item)] = item.toggle()),
+  onAddItem: _addShoppingItem,
+  onEditItem: _editShoppingItem,
+  onDeleteItem: _deleteShoppingItem,
+),
       _ => RecipesPage(matches: recommendations, onOpen: openRecipe),
     };
 

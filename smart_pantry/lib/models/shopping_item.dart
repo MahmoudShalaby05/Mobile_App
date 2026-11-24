@@ -15,4 +15,18 @@ class ShoppingItem {
 
   ShoppingItem toggle() =>
       ShoppingItem(id, name, quantity, unit, isPurchased: !isPurchased);
+  ShoppingItem copyWith({
+    String? name,
+    double? quantity,
+    String? unit,
+    bool? isPurchased,
+  }) {
+    return ShoppingItem(
+      id,
+      name ?? this.name,
+      quantity ?? this.quantity,
+      unit ?? this.unit,
+      isPurchased: isPurchased ?? this.isPurchased,
+    );
+  }
 }

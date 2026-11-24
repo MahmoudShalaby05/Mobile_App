@@ -11,6 +11,8 @@ class ShoppingPage extends StatelessWidget {
     required this.pantry,
     required this.toggle,
     required this.onAddItem,
+    required this.onEditItem,
+    required this.onDeleteItem,
     super.key,
   });
 
@@ -18,6 +20,14 @@ class ShoppingPage extends StatelessWidget {
   final List<FoodItem> pantry;
   final ValueChanged<ShoppingItem> toggle;
   final void Function(String name, double quantity, String unit) onAddItem;
+  final void Function(
+    ShoppingItem item,
+    String name,
+    double quantity,
+    String unit,
+  ) onEditItem;
+
+  final ValueChanged<ShoppingItem> onDeleteItem;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -43,9 +53,12 @@ class ShoppingPage extends StatelessWidget {
       const SizedBox(height: 12),
       if (items.isEmpty) const Text('Your shopping list is empty.'),
       for (final item in items)
-        Card(
-          color: Colors.white,
-          elevation: 0,
+  Card(
+    color: Colors.white,
+    elevation: 0,
+    child: Row(
+      children: [
+        Expanded(
           child: CheckboxListTile(
             value: item.isPurchased,
             onChanged: (_) => toggle(item),
@@ -53,9 +66,70 @@ class ShoppingPage extends StatelessWidget {
             subtitle: Text(_details(item)),
           ),
         ),
+
+        // Edit button
+        IconButton(
+          tooltip: 'Edit Item',
+          icon: const Icon(Icons.edit_outlined),
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AddShoppingItemDialog(
+                  existingItem: item,
+                  onAdd: (name, quantity, unit) {
+                    onEditItem(item, name, quantity, unit);
+                  },
+                );
+              },
+            );
+          },
+        ),
+
+        // Delete button
+        IconButton(
+          tooltip: 'Delete Item',
+          icon: const Icon(Icons.delete_outline),
+          onPressed: () {
+            _confirmDelete(context, item);
+          },
+        ),
+      ],
+    ),
+  ),
     ],
   );
-
+void _confirmDelete(
+  BuildContext context,
+  ShoppingItem item,
+) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Delete Shopping Item'),
+        content: Text(
+          'Are you sure you want to delete ${item.name}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              onDeleteItem(item);
+              Navigator.pop(context);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+}
   String _details(ShoppingItem item) {
     final stock = pantry
         .where(
