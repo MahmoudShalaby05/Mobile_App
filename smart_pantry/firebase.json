@@ -1,0 +1,24 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "smart-pantry-10613",
+          "appId": "1:311411859125:android:425fe8ccfbd87dc97be8fc",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "smart-pantry-10613",
+          "configurations": {
+            "android": "1:311411859125:android:425fe8ccfbd87dc97be8fc"
+          }
+        }
+      }
+    }
+  }
+}
