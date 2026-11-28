@@ -1,7 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'demo_data.dart';
 import 'features/authentication/account_page.dart';
+import 'features/authentication/auth_actions.dart';
+import 'features/authentication/login_page.dart';
 import 'features/dashboard/dashboard_page.dart';
 import 'features/expiration/use_first_page.dart';
 import 'features/pantry/pantry_page.dart';
@@ -12,22 +16,115 @@ import 'features/recipes/recipes_page.dart';
 import 'features/shopping/shopping_page.dart';
 import 'models/food_item.dart';
 import 'models/shopping_item.dart';
+import 'providers/firebase_providers.dart';
 import 'theme/pantry_theme.dart';
 
 class SmartPantryApp extends StatelessWidget {
-  const SmartPantryApp({super.key});
+  const SmartPantryApp({this.authenticationEnabled = false, super.key});
+
+  final bool authenticationEnabled;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Smart Pantry',
-    debugShowCheckedModeBanner: false,
-    theme: pantryTheme(),
-    home: const _PantryShell(),
-  );
+  Widget build(BuildContext context) => authenticationEnabled
+      ? const _SessionApp()
+      : _pantryApp(const _PantryShell());
+}
+
+MaterialApp _pantryApp(Widget home, {Key? key}) => MaterialApp(
+  key: key,
+  title: 'Smart Pantry',
+  debugShowCheckedModeBanner: false,
+  theme: pantryTheme(),
+  home: home,
+);
+
+class _SessionApp extends ConsumerStatefulWidget {
+  const _SessionApp();
+
+  @override
+  ConsumerState<_SessionApp> createState() => _SessionAppState();
+}
+
+class _SessionAppState extends ConsumerState<_SessionApp> {
+  bool _registering = false;
+
+  Future<String?> _signup({
+    required String fullName,
+    required String email,
+    required String password,
+  }) async {
+    setState(() => _registering = true);
+    try {
+      return await register(
+        ref.read(firebaseAuthProvider),
+        fullName: fullName,
+        email: email,
+        password: password,
+      );
+    } finally {
+      if (mounted) setState(() => _registering = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ref
+      .watch(authStateProvider)
+      .when(
+        loading: () => _pantryApp(
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+          key: const ValueKey(('loading', null)),
+        ),
+        error: (_, _) => _pantryApp(
+          Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Could not load your account session.'),
+                    TextButton(
+                      onPressed: () => ref.invalidate(authStateProvider),
+                      child: const Text('Try again'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          key: const ValueKey(('error', null)),
+        ),
+        data: (user) {
+          if (user == null || _registering) {
+            return _pantryApp(
+              LoginPage(
+                onLogin: ({required email, required password}) => signIn(
+                  ref.read(firebaseAuthProvider),
+                  email: email,
+                  password: password,
+                ),
+                onSignup: _signup,
+              ),
+              key: const ValueKey(('signed-out', null)),
+            );
+          }
+
+          // Recreate the navigator and shell on every UID change. No old route or
+          // in-memory feature state can survive a sign-out or account switch.
+          return _pantryApp(
+            _PantryShell(user: user),
+            key: ValueKey(('signed-in', user.uid)),
+          );
+        },
+        skipLoadingOnRefresh: false,
+        skipLoadingOnReload: false,
+      );
 }
 
 class _PantryShell extends StatefulWidget {
-  const _PantryShell();
+  const _PantryShell({this.user});
+
+  final User? user;
 
   @override
   State<_PantryShell> createState() => _PantryShellState();
@@ -135,7 +232,9 @@ class _PantryShellState extends State<_PantryShell> {
             IconButton(
               tooltip: 'Account',
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const AccountPage()),
+                MaterialPageRoute<void>(
+                  builder: (_) => AccountPage(user: widget.user),
+                ),
               ),
               icon: const Icon(Icons.account_circle_outlined),
             ),
